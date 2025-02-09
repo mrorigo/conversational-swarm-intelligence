@@ -18,7 +18,10 @@ class Agent {
       throw new Error("OPENAI_API_KEY is not set in the environment.");
     }
 
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_API_URL || "https://api.openai.com",
+    });
     this.conversationHistory = [];
     this.historyLimit = historyLimit;
     this.model = model;

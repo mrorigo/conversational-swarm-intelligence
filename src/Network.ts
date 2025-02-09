@@ -1,19 +1,17 @@
 import Agent from "./Agent";
 import Conversation from "./Conversation";
 import OpenAI from "openai";
-import { ChatCompletionMessageParam } from "openai/resources/chat";
 
 class Network {
-  private agents: Agent[];
-  private subgroups: Agent[][];
+  private subgroups: Agent[][] = [];
   private openai: OpenAI;
-  private sharedInsights: string[];
+  private sharedInsights: string[] = [];
 
-  constructor(agents: Agent[]) {
-    this.agents = agents;
-    this.subgroups = [];
+  constructor(
+    private agents: Agent[],
+    private summary_model: string,
+  ) {
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    this.sharedInsights = []; // Store shared insights
   }
 
   public createSubgroups(subgroupSize: number): void {
@@ -118,10 +116,10 @@ class Network {
   ): Promise<string> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: this.summary_model,
         messages: [
           {
-            role: "system",
+            role: this.getSystemRole(),
             content:
               "You are an AI assistant that summarizes conversations. Provide a concise summary of the following conversation, highlighting the key insights:",
           },
@@ -152,16 +150,21 @@ class Network {
     }
   }
 
+  // Handle system prompt based on the model (o-models don't accept system role)
+  private getSystemRole(): "user" | "system" {
+    return this.summary_model.startsWith("o") ? "user" : "system";
+  }
+
   private async summarizeSharedInsights(
     sharedInsights: string,
     topic: string,
   ): Promise<string> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: this.summary_model,
         messages: [
           {
-            role: "system",
+            role: this.getSystemRole(),
             content:
               "You are an AI assistant that summarizes a set of shared insights and generates a final report. Provide a concise summary of the following insights, highlighting the key conclusions reached by the agents during the discussions about " +
               topic +

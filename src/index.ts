@@ -4,9 +4,13 @@ import { readFileSync } from "fs";
 
 async function main(
   context: string,
-  num_agents: number,
-  num_groups: number,
-  models: string[],
+  options: {
+    rounds: number;
+    steps: number;
+    models: string[];
+    agents: number;
+    groups: number;
+  },
 ) {
   const system_prompt =
     "You are a polite, thoughtful and intelligent panel discussion member. " +
@@ -16,23 +20,27 @@ async function main(
     "If given a specific problem, focus on solving the problem in novel ways.";
 
   const agents = [];
-  for (let i = 0; i < num_agents; i++) {
+  for (let i = 0; i < options.agents; i++) {
     agents.push(
-      new Agent(`Agent${i}`, models[i % models.length], system_prompt),
+      new Agent(
+        `Agent${i}`,
+        options.models[i % options.models.length],
+        system_prompt,
+      ),
     );
   }
 
-  // Create a network
-  const network = new Network(agents);
+  // Create a network, use the first model as the summary model
+  const network = new Network(agents, options.models[0]);
 
   // Create subgroups
-  network.createSubgroups(num_groups);
+  network.createSubgroups(options.groups);
 
   // Start conversations
   const finalReport = await network.startConversations(
     context,
-    // "Discuss new ideas on how to model NLP problems specifically to solve math. Can we use special tokenizers to get better math performance?",
-    3,
+    options.rounds,
+    options.steps,
   );
   console.log("Final Report:\n", finalReport);
 }
@@ -41,12 +49,13 @@ function printHelp() {
   console.log(
     "Usage: node index.js [OPTIONS]\n" +
       "Options:\n" +
-      "  --agents AGENTS    The number of agents to use in the conversation\n" +
+      "  --agents AGENTS    The number of agents to use in the conversations\n" +
       "  --groups GROUPS    The number of groups to divide the agents into\n" +
       "  --rounds ROUNDS    The number of rounds to run the conversation (Default: 3)\n" +
       "  --steps STEPS      The number of steps to run the conversation in each round\n" +
       "                     before sharing insights (Default: 5)\n" +
       "  --models MODELS    The models to use for the agents, separated by commas\n" +
+      "                     (default OPENAI_MODELS from env)\n" +
       "  -t, --text TEXT    The text to be used as context for the conversation\n" +
       "  -f, --file FILE    The path to a file containing the text to be used as context\n" +
       "  -h, --help         Display this help information",
@@ -77,6 +86,9 @@ function parseArgs() {
         break;
       case "--steps":
         options.steps = parseInt(args[i + 1]);
+        break;
+      case "--models":
+        options.models = args[i + 1].split(",");
         break;
       case "-t":
       case "--text":
@@ -154,7 +166,7 @@ function runMain() {
   const options = parseArgs();
   const context = getContext(options);
 
-  main(context, options.agents, options.groups, options.models);
+  main(context, options);
 }
 
 runMain();
